@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/koalas
+koalas.so
+koalas.dylib
+koalas.dll
+koalas.a
+koalas.lib
+koalas-test-*
+*.exe
+*.o
+*.obj
+*.lst
