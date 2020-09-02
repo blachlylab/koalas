@@ -237,6 +237,15 @@ auto Dataframe(){
     return Dataframe!__BaseDf();
 }
 
+auto concat(T)(Dataframe!T[] dfs ...){
+    Dataframe!T master;
+    foreach (df; dfs)
+    {
+        master.records ~= df.records;
+    }
+    return master;
+}
+
 private struct testRecord{
     string chrom;
     int pos;
@@ -258,8 +267,9 @@ unittest{
     df.setCol!"other"("j");
     writeln(df);
     df.sort!(["chrom", "pos"]);
+    df = concat(df,df);
     writeln(df);
-    writeln(df["other"]);
+
 }
 
 unittest{
