@@ -9,12 +9,33 @@ import std.stdio;
 import std.meta: AliasSeq;
 import std.conv: to;
 import std.traits: isSomeChar, isArray, isSomeString;
+import std.typecons: tuple;
 
 struct Dataframe(RT){
     RT[] records;
 
     this(RT[] rows){
         this.records = rows;
+    }
+
+    /// get number of rows
+    @property ulong length(){
+        return records.length;  
+    }
+
+    /// set number of rows
+    @property void length(ulong len){
+        records.length = len;
+    }
+
+    /// get shape of dataframe
+    @property auto shape(){
+        return tuple(records.length,columns.length);
+    }
+
+    /// get a copy of the dataframe
+    auto copy(){
+        return Dataframe!RT(records.dup);
     }
 
     /// returns a dataframe of filtered records
@@ -146,6 +167,7 @@ struct Dataframe(RT){
             }    
         }
         mixin(GenMultiSort!idx_type("new_records"));
+        mixin(GenMultiSort!idx_type("indexes"));
         GroupbyItem!(idx_type,RT) group;
         group.index = indexes[0];
         foreach (i,idx_type idx; indexes)
@@ -160,6 +182,21 @@ struct Dataframe(RT){
         }
         if(group.items.records.length !=0) gby.groups~=group;
         return gby;
+    }
+
+    /// sorts a dataframe based on a string[] of indices 
+    /// similar to df.groupby(["col","col2"]) in pandas
+    void sort(string[] indices)(){
+        enum idx_type_name = GenIndexName!(__traits(identifier,RT),indices);
+        static foreach (index; indices)
+        {
+            static assert(__traits(hasMember, RT, index));
+        }
+        mixin(GenSubset!(idx_type_name,indices,RT));
+        mixin("alias idx_type = "~idx_type_name~";");
+        
+        if(records.length == 0) return;
+        mixin(GenMultiSort!idx_type("records"));
     }
 
     /// returns a dataframe of first n records 
@@ -185,7 +222,6 @@ struct Dataframe(RT){
             output = output[0..$-1] ~'\n';
             i++;
         }
-        output = output[0..$-1];
         return output;
     }
 }
@@ -214,12 +250,16 @@ unittest{
     df.records~= testRecord("1",2,"his");
     df.records~= testRecord("2",3,"high");
     df.records~= testRecord("q",7,"no");
+    df.records~= testRecord("q",6,"no");
     writeln(df.columns);
     auto gby = df.groupby!(["chrom", "pos"]);
     writeln(gby);
     writeln(gby.count);
     df.setCol!"other"("j");
     writeln(df);
+    df.sort!(["chrom", "pos"]);
+    writeln(df);
+    writeln(df["other"]);
 }
 
 unittest{
