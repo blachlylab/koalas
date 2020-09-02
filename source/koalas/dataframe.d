@@ -2,7 +2,7 @@ module koalas.dataframe;
 import koalas.groupby;
 import koalas.util;
 
-import std.algorithm: map, filter, multiSort;
+import std.algorithm: map, filter, multiSort, uniq;
 import std.array: array;
 import std.array: split,join;
 import std.stdio;
@@ -185,7 +185,6 @@ struct Dataframe(RT){
     }
 
     /// sorts a dataframe based on a string[] of indices 
-    /// similar to df.groupby(["col","col2"]) in pandas
     void sort(string[] indices)(){
         enum idx_type_name = GenIndexName!(__traits(identifier,RT),indices);
         static foreach (index; indices)
@@ -197,6 +196,12 @@ struct Dataframe(RT){
         
         if(records.length == 0) return;
         mixin(GenMultiSort!idx_type("records"));
+    }
+
+    /// sorts a dataframe based on all columns 
+    void sort(){
+        if(records.length == 0) return;
+        mixin(GenMultiSort!RT("records"));
     }
 
     /// returns a dataframe of first n records 
@@ -223,6 +228,61 @@ struct Dataframe(RT){
             i++;
         }
         return output;
+    }
+
+    /// Returns a Dataframe of specific columns from current dataframe
+    auto subset(string[] indices)(){
+        enum sub_type_name = GenIndexName!(__traits(identifier,RT),indices);
+        static foreach (index; indices)
+        {
+            static assert(__traits(hasMember, RT, index));
+        }
+        mixin(GenSubset!(sub_type_name,indices,RT));
+        mixin("alias sub_type = "~sub_type_name~";");
+        Dataframe!(sub_type) sub;
+        if(records.length == 0) return sub;
+        sub.length = this.length;
+        foreach (i,rec; this.records)
+        {
+            static foreach(name; AliasSeq!(sub_type.tupleof)){
+                mixin("sub.records[i]."~name.stringof~"=rec."~name.stringof~";");
+            }    
+        }
+        return sub;
+    }
+
+    auto unique(){
+        auto tmp = this.copy;
+        tmp.sort;
+        return Dataframe!RT(this.records.uniq.array);
+    }
+
+    /// apply function to column elements
+    /// returns an array of results
+    auto apply(alias fun, string col)(){
+        import std.functional : unaryFun, binaryFun;
+        return map!fun(this.getCol!col).array;
+    }
+
+    /// apply function to column elements
+    /// returns an array of results
+    auto apply(string fun, string col)(){
+        import std.functional : unaryFun;
+        return map!(unaryFun!fun)(this.getCol!col).array;
+    }
+
+    /// apply function to all rows
+    /// returns an array of results
+    auto apply(alias fun)(){
+        import std.functional : unaryFun, binaryFun;
+        return map!fun(this.records).array;
+    }
+
+    /// apply function to all rows
+    /// returns an array of results
+    auto apply(string fun)(){
+        import std.functional : unaryFun;
+        return map!(unaryFun!fun)(this.records).array;
     }
 }
 
@@ -269,7 +329,12 @@ unittest{
     df.sort!(["chrom", "pos"]);
     df = concat(df,df);
     writeln(df);
-
+    writeln(df.apply!("a.to!string","pos"));
+    writeln(df.apply!("a.pos * 2"));
+    writeln(df.subset!(["chrom","pos"]));
+    auto sub = df.subset!(["chrom","pos"]);
+    writeln(sub);
+    writeln(sub.unique);
 }
 
 unittest{

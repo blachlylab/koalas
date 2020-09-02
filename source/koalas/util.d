@@ -177,6 +177,7 @@ string[] GenMultiSortComps(T)(){
 }
 
 string GenMultiSort(T)(string var){
+    if(GenMultiSortComps!T.length == 0) return "{ }";
     string ret = var~".multiSort!(";
     foreach(s;GenMultiSortComps!T){
         ret~="\""~s~"\",";
