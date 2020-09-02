@@ -14,6 +14,8 @@ import std.typecons: tuple;
 struct Dataframe(RT){
     RT[] records;
 
+    alias record_type = RT;
+
     this(RT[] rows){
         this.records = rows;
     }
@@ -39,25 +41,13 @@ struct Dataframe(RT){
     }
 
     /// returns a dataframe of filtered records
-    /// filters on col == value
+    /// filters on col == value if provided cmpOp is ==
     /// similar to df[df["col"] == value] in pandas
-    template select(string col){
+    template select(string col, string cmpOp = "=="){
         auto select(E)(E val) if(__traits(hasMember, RT, col))
         {
             mixin("static assert(is(typeof(RT." ~ col ~") == E));"); 
-            mixin("auto fun = (RT x) => x." ~ col ~" == val;");
-            return Dataframe!RT(records.filter!fun.array);
-        }
-    }
-
-    /// returns a dataframe of filtered records
-    /// filters on col != value
-    /// similar to df[df["col"] != value] in pandas
-    template invertedSelect(string col){
-        auto select(E)(E val) if(__traits(hasMember, RT, col))
-        {
-            mixin("static assert(is(typeof(RT." ~ col ~") == E));"); 
-            mixin("auto fun = (RT x) => x." ~ col ~" != val;");
+            mixin("auto fun = (RT x) => x." ~ col ~" "~ cmpOp ~" val;");
             return Dataframe!RT(records.filter!fun.array);
         }
     }
@@ -297,6 +287,11 @@ auto Dataframe(){
     return Dataframe!__BaseDf();
 }
 
+auto unique(T)(T[] arr){
+    import std.algorithm: sort;
+    return arr.sort.uniq.array;
+}
+
 auto concat(T)(Dataframe!T[] dfs ...){
     Dataframe!T master;
     foreach (df; dfs)
@@ -315,11 +310,11 @@ private struct testRecord{
 unittest{
     import std.stdio;
     Dataframe!testRecord df;
-    df.records~= testRecord("1",2,"hi");
-    df.records~= testRecord("1",2,"his");
-    df.records~= testRecord("2",3,"high");
-    df.records~= testRecord("q",7,"no");
-    df.records~= testRecord("q",6,"no");
+    df.records~= df.record_type("1",2,"hi");
+    df.records~= df.record_type("1",2,"his");
+    df.records~= df.record_type("2",3,"high");
+    df.records~= df.record_type("q",7,"no");
+    df.records~= df.record_type("q",6,"no");
     writeln(df.columns);
     auto gby = df.groupby!(["chrom", "pos"]);
     writeln(gby);
@@ -335,6 +330,7 @@ unittest{
     auto sub = df.subset!(["chrom","pos"]);
     writeln(sub);
     writeln(sub.unique);
+    writeln(sub.getCol!"chrom".unique);
 }
 
 unittest{
