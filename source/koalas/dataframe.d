@@ -315,27 +315,21 @@ unittest{
     df.records~= df.record_type("2",3,"high");
     df.records~= df.record_type("q",7,"no");
     df.records~= df.record_type("q",6,"no");
-    writeln(df.columns);
+    assert(df.columns == ["chrom", "pos", "other"]);
     auto gby = df.groupby!(["chrom", "pos"]);
-    writeln(gby);
-    writeln(gby.count);
+    assert(gby.count.getCol!"count" == [2, 1, 1, 1]);
     df.setCol!"other"("j");
-    writeln(df);
     df.sort!(["chrom", "pos"]);
     df = concat(df,df);
-    writeln(df);
-    writeln(df.apply!("a.to!string","pos"));
-    writeln(df.apply!("a.pos * 2"));
-    writeln(df.subset!(["chrom","pos"]));
+    assert(df.apply!("a.to!string","pos") == ["2", "2", "3", "6", "7", "2", "2", "3", "6", "7"]);
+    assert(df.apply!("a.pos * 2") == [4, 4, 6, 12, 14, 4, 4, 6, 12, 14]);
     auto sub = df.subset!(["chrom","pos"]);
-    writeln(sub);
-    writeln(sub.unique);
-    writeln(sub.getCol!"chrom".unique);
+    assert(sub.unique.getCol!"chrom" == ["1", "2", "q", "q", "1", "2", "q", "q"]);
+    assert(sub.getCol!"chrom".unique == ["1","2","q"]);
 }
 
 unittest{
     auto df = Dataframe();
     auto df2 =df.addNewCol!(int,"pos");
     auto df3 = df2.addNewCol!(int,"pos2");
-    writeln(df3);
 }
