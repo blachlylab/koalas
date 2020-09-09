@@ -15,6 +15,8 @@ struct Dataframe(RT){
     RT[] records;
 
     alias record_type = RT;
+    alias memberTypes = AliasSeq!(typeof(RT.tupleof));
+    alias memberNames = AliasSeq!(RT.tupleof);
 
     this(RT[] rows){
         this.records = rows;
@@ -85,12 +87,18 @@ struct Dataframe(RT){
         }
     }
 
-    /// Adds a new column to dataframe
+    /// Adds a new column to dataframe (will be empty column)
     /// realistically creates a new DF type since we are statically typed
     auto addNewCol(T,string name)(){
+
+        // make new type name
         enum new_type_name = RT.stringof~name;
+
+        // generate type
         mixin(GenAddStructString!(RT,new_type_name,T.stringof~" "~name~";"));
         mixin("alias new_type = "~new_type_name~";");
+
+        // make new dataframe and copy
         Dataframe!new_type newdf;
         newdf.records.length = this.records.length;
         alias memberNames = AliasSeq!(RT.tupleof);
@@ -105,8 +113,6 @@ struct Dataframe(RT){
     /// again must predefine columns with struct
     /// similar to pd.read_table in pandas
     void fromTable(string fn, string sep = "\t",int indexCols = 0, int headerCols = 0){
-        alias memberTypes = AliasSeq!(typeof(RT.tupleof));
-        alias memberNames = AliasSeq!(RT.tupleof);
         auto file =  File(fn);
         string line;
         while(headerCols){
@@ -128,7 +134,6 @@ struct Dataframe(RT){
     /// returns string[] of columns 
     /// similar to df.columns in pandas
     static string[] columns(){
-        alias memberNames = AliasSeq!(RT.tupleof);
         string[] ret;
         static foreach(m;memberNames){
             ret ~= m.stringof;
@@ -139,15 +144,23 @@ struct Dataframe(RT){
     /// Returns a groupby object grouped by a string[] of indices 
     /// similar to df.groupby(["col","col2"]) in pandas
     auto groupby(string[] indices)(){
+
+        // generate index name
         enum idx_type_name = GenIndexName!(__traits(identifier,RT),indices);
         static foreach (index; indices)
         {
             static assert(__traits(hasMember, RT, index));
         }
+
+        // generate index type
         mixin(GenSubset!(idx_type_name,indices,RT));
         mixin("alias idx_type = "~idx_type_name~";");
+
+        // make groupby
         Groupby!(idx_type,RT) gby;
         if(records.length == 0) return gby;
+
+        // copy data to indexes
         auto new_records = records.dup;
         idx_type[] indexes = new idx_type[new_records.length];
         foreach (i,rec; new_records)
@@ -156,8 +169,12 @@ struct Dataframe(RT){
                 mixin("indexes[i]."~name.stringof~"=rec."~name.stringof~";");
             }    
         }
+
+        // sort indexes and records
         mixin(GenMultiSort!idx_type("new_records"));
         mixin(GenMultiSort!idx_type("indexes"));
+
+        // assign records to groups
         GroupbyItem!(idx_type,RT) group;
         group.index = indexes[0];
         foreach (i,idx_type idx; indexes)
@@ -176,6 +193,8 @@ struct Dataframe(RT){
 
     /// sorts a dataframe based on a string[] of indices 
     void sort(string[] indices)(){
+
+        // generate indexes
         enum idx_type_name = GenIndexName!(__traits(identifier,RT),indices);
         static foreach (index; indices)
         {
@@ -184,6 +203,7 @@ struct Dataframe(RT){
         mixin(GenSubset!(idx_type_name,indices,RT));
         mixin("alias idx_type = "~idx_type_name~";");
         
+        // sort based on indexes
         if(records.length == 0) return;
         mixin(GenMultiSort!idx_type("records"));
     }
@@ -205,7 +225,6 @@ struct Dataframe(RT){
     string toString(){
         auto i = 0;
         string output = "\t"~columns.join("\t")~"\n";
-        alias memberNames = AliasSeq!(RT.tupleof);
         foreach (rec; records)
         {
             output~=i.to!string~"\t";
@@ -222,13 +241,19 @@ struct Dataframe(RT){
 
     /// Returns a Dataframe of specific columns from current dataframe
     auto subset(string[] indices)(){
+
+        // generate subset type name
         enum sub_type_name = GenIndexName!(__traits(identifier,RT),indices);
         static foreach (index; indices)
         {
             static assert(__traits(hasMember, RT, index));
         }
+
+        // generate subset type
         mixin(GenSubset!(sub_type_name,indices,RT));
         mixin("alias sub_type = "~sub_type_name~";");
+
+        // create new data frame and copy data
         Dataframe!(sub_type) sub;
         if(records.length == 0) return sub;
         sub.length = this.length;
@@ -241,6 +266,7 @@ struct Dataframe(RT){
         return sub;
     }
 
+    /// sort and get unique records from dataframe
     auto unique(){
         auto tmp = this.copy;
         tmp.sort;
