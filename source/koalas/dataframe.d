@@ -218,7 +218,7 @@ struct Dataframe(RT){
     /// similar to df.head() in pandas
     auto head(ulong numRows = 5){
         if(numRows > records.length) numRows = records.length;
-        return Dataframe!RT(records[0..5].dup);
+        return Dataframe!RT(records[0..numRows].dup);
     }
 
     /// Converts dataframe to string for printing 
