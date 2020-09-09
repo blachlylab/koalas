@@ -19,10 +19,12 @@ string GenSubsetString(OT,string name, string[] fields)(){
     return ret;
 }
 
+/// Generate struct based on another struct by extract properties listed in fields
 template GenSubset(string name, string[] fields, OT){
     enum GenSubset = GenSubsetString!(OT,name,fields);
 }
 
+/// Generate multisort comparisions based on type
 string[] GenMultiSortComps(T)(){
     alias memberNames = AliasSeq!(T.tupleof);
     string[] ret;
@@ -33,6 +35,7 @@ string[] GenMultiSortComps(T)(){
     return ret;
 }
 
+/// Generate multisort based on type
 string GenMultiSort(T)(string var){
     if(GenMultiSortComps!T.length == 0) return "{ }";
     string ret = var~".multiSort!(";
@@ -54,6 +57,7 @@ string GenIndexName(string name, string[] fields)(){
     return ret;
 }
 
+/// Generate struct from another, adding new members via additional
 string GenAddStructString(OT,string name, string additional)(){
     alias memberTypes = AliasSeq!(typeof(OT.tupleof));
     alias memberNames = AliasSeq!(OT.tupleof);
