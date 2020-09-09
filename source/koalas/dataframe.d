@@ -274,6 +274,21 @@ struct Dataframe(RT){
         import std.functional : unaryFun;
         return map!(unaryFun!fun)(this.records).array;
     }
+
+    /// allow foreach on dataframe
+    int opApply(int delegate(ref RT) dg) {
+        int result = 0;
+
+        foreach (rec; records) {
+            result = dg(rec);
+
+            if (result) {
+                break;
+            }
+        }
+
+        return result;
+    }
 }
 
 
@@ -326,6 +341,9 @@ unittest{
     auto sub = df.subset!(["chrom","pos"]);
     assert(sub.unique.getCol!"chrom" == ["1", "2", "q", "q", "1", "2", "q", "q"]);
     assert(sub.getCol!"chrom".unique == ["1","2","q"]);
+    foreach(ref rec;sub){
+        writeln(rec);
+    }
 }
 
 unittest{
