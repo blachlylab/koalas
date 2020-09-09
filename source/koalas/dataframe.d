@@ -18,6 +18,22 @@ struct Dataframe(RT){
     alias memberTypes = AliasSeq!(typeof(RT.tupleof));
     alias memberNames = AliasSeq!(RT.tupleof);
 
+    /// Allow getting column as a property
+    /// TODO: fix issue when a column name overlaps existing df function
+    /// e.g. column name length and length function below
+    /// for now we will prevent these names as column names from compiling
+    static foreach(i,member;memberNames){
+        static assert(member.stringof != "length");
+        static assert(member.stringof != "shape");
+        static assert(member.stringof != "copy");
+        static assert(member.stringof != "columns");
+        static assert(member.stringof != "sort");
+        static assert(member.stringof != "head");
+        static assert(member.stringof != "toString");
+        static assert(member.stringof != "unique");
+        mixin("alias "~member.stringof~" = getCol!\""~member.stringof~"\";");
+    }
+
     this(RT[] rows){
         this.records = rows;
     }
