@@ -31,6 +31,7 @@ struct Dataframe(RT){
         static assert(member.stringof != "head");
         static assert(member.stringof != "toString");
         static assert(member.stringof != "unique");
+        static assert(member.stringof != "records");
         mixin("alias "~member.stringof~" = getCol!\""~member.stringof~"\";");
     }
 
@@ -331,6 +332,20 @@ struct Dataframe(RT){
 
         return result;
     }
+
+    auto opIndex(bool[] indexes){
+        RT[] newRecords;
+        ulong[] newIndexes;
+        foreach (i,idx; indexes)
+        {
+            if(idx) newIndexes ~= i;
+        }
+        foreach (ulong key; newIndexes)
+        {
+            newRecords ~= records[key];
+        }
+        return Dataframe!RT(newRecords);
+    }
 }
 
 
@@ -386,6 +401,8 @@ unittest{
     foreach(ref rec;sub){
         writeln(rec);
     }
+    auto index = sub.apply!("a > 5","pos");
+    assert(sub[index].pos == [6,7,6,7]);
 }
 
 unittest{
