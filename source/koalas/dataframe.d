@@ -153,8 +153,9 @@ struct Dataframe(RT){
         auto file =  File(fn,"w");
         string line;
         file.writeln(columns.join(sep));
-        foreach (rec; records)
+        foreach (i,rec; records)
         {
+            if(writeIndex) line~= i.to!string ~ sep;
             static foreach (c; columns)
             {
                 mixin("line ~= rec."~c~".to!string ~ sep;");
