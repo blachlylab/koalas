@@ -4,7 +4,7 @@ import koalas.util;
 
 import std.algorithm: map, filter, multiSort, uniq;
 import std.array: array;
-import std.array: split,join;
+import std.array: split, join;
 import std.stdio;
 import std.meta: AliasSeq;
 import std.conv: to;
@@ -379,6 +379,17 @@ private struct testRecord{
     string other;
 }
 
+/// returns string[] of columns 
+/// similar to df.columns in pandas
+static string[] columns(RT)(RT row){
+    alias memberNames = AliasSeq!(RT.tupleof);
+    string[] ret;
+    static foreach(m;memberNames){
+        ret ~= m.stringof;
+    }
+    return ret;
+}
+
 unittest{
     import std.stdio;
     Dataframe!testRecord df;
@@ -403,6 +414,7 @@ unittest{
     }
     auto index = sub.apply!("a > 5","pos");
     assert(sub[index].pos == [6,7,6,7]);
+    assert(sub.records[0].columns == sub.columns);
 }
 
 unittest{
