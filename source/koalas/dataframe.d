@@ -118,10 +118,9 @@ struct Dataframe(RT){
         // make new dataframe and copy
         Dataframe!new_type newdf;
         newdf.records.length = this.records.length;
-        alias memberNames = AliasSeq!(RT.tupleof);
-        static foreach (memberName; memberNames)
+        static foreach (c; columns)
         {
-            newdf.setCol!(memberName.stringof)(this.getCol!(memberName.stringof)());
+            newdf.setCol!(c)(this.getCol!(c)());
         }
         return newdf;
     }
@@ -146,6 +145,25 @@ struct Dataframe(RT){
             }
             this.records ~= item;
         }
+    }
+
+    /// writes a dataframe to a csv file
+    /// similar to pd.read_table in pandas
+    void toCsv(string fn, string sep = ",",bool writeIndex = false){
+        auto file =  File(fn,"w");
+        string line;
+        file.writeln(columns.join(sep));
+        foreach (rec; records)
+        {
+            static foreach (c; columns)
+            {
+                mixin("line ~= rec."~c~".to!string ~ sep;");
+            }
+            line = line[0..$-sep.length];
+            file.writeln(line);
+            line.length = 0;
+        }
+        file.close;
     }
 
     /// returns string[] of columns 
@@ -245,9 +263,9 @@ struct Dataframe(RT){
         foreach (rec; records)
         {
             output~=i.to!string~"\t";
-            static foreach (member; memberNames)
+            static foreach (c; columns)
             {
-                mixin("output~=rec."~member.stringof~".to!string;");
+                mixin("output~=rec."~c~".to!string;");
                 output~="\t";
             }
             output = output[0..$-1] ~'\n';
