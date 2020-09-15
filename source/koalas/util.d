@@ -70,6 +70,38 @@ string GenAddStructString(OT,string name, string additional)(){
     return ret;
 }
 
+string GenerateSubsetNumericDataframe(T)(T x){
+    import std.traits: isNumeric;
+    string gen = "auto df = Dataframe()";
+    static foreach (i,member; x.idxMemberTypes)
+    {
+        gen ~= ".addNewCol!("~member.stringof~",\""~ x.idxMemberNames[i].stringof~"\")";
+    }
+    static foreach (i,member; x.memberTypes[x.idxMemberTypes.length..$])
+    {
+        static if(isNumeric!member)
+            gen ~= ".addNewCol!("~member.stringof~",\""~ x.memberNames[x.idxMemberTypes.length+i].stringof~"\")";
+    }
+    gen ~= ";";
+    return gen;
+}
+
+string GenerateSubsetDoubleDataframe(T)(T x){
+    import std.traits: isNumeric;
+    string gen = "auto df = Dataframe()";
+    static foreach (i,member; x.idxMemberTypes)
+    {
+        gen ~= ".addNewCol!("~member.stringof~",\""~ x.idxMemberNames[i].stringof~"\")";
+    }
+    static foreach (i,member; x.memberTypes[x.idxMemberTypes.length..$])
+    {
+        static if(isNumeric!member)
+            gen ~= ".addNewCol!(double,\""~ x.memberNames[x.idxMemberTypes.length+i].stringof~"\")";
+    }
+    gen ~= ";";
+    return gen;
+}
+
 private struct S_B { int x; int z;} 
                                                      
 unittest 
