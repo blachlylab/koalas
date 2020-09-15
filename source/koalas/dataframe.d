@@ -147,12 +147,16 @@ struct Dataframe(RT){
         }
     }
 
+    void toCsv(string fn, string sep = ",",bool writeHeader = true,bool writeIndex = false){
+        auto file =  File(fn,"w");
+        toCsv(file,sep,writeHeader,writeIndex);
+    }
+
     /// writes a dataframe to a csv file
     /// similar to pd.read_table in pandas
-    void toCsv(string fn, string sep = ",",bool writeIndex = false){
-        auto file =  File(fn,"w");
+    void toCsv(File file, string sep = ",",bool writeHeader = true,bool writeIndex = false){
         string line;
-        file.writeln(columns.join(sep));
+        if(writeHeader) file.writeln(columns.join(sep));
         foreach (i,rec; records)
         {
             if(writeIndex) line~= i.to!string ~ sep;
@@ -164,7 +168,6 @@ struct Dataframe(RT){
             file.writeln(line);
             line.length = 0;
         }
-        file.close;
     }
 
     /// returns string[] of columns 
