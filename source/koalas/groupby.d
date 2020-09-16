@@ -72,29 +72,29 @@ struct Groupby(IT,RT)
         return df;
     }
 
-    alias sum = numericApply!"sum";
+    // alias sum = numericApply!"sum";
 
-    auto mean(){
-        mixin(GenerateSubsetDoubleDataframe(Groupby!(IT,RT)()));
-        df.length = groups.length;
-        foreach (i,group; groups)
-        {
-            static foreach (j,member; idxMemberNames)
-            {
-                mixin("df.records[i]."~member.stringof~" = group.index."~member.stringof~";");
-            }
-            static foreach (j,member; memberNames[idxMemberNames.length..$])
-            {
-                static if(isNumeric!(memberTypes[idxMemberNames.length+j]))
-                    mixin("df.records[i]."~member.stringof~" = group.items."~member.stringof~".mean;");
-            }
-        }
-        return df;
-    }
+    // auto mean(){
+    //     mixin(GenerateSubsetDoubleDataframe(Groupby!(IT,RT)()));
+    //     df.length = groups.length;
+    //     foreach (i,group; groups)
+    //     {
+    //         static foreach (j,member; idxMemberNames)
+    //         {
+    //             mixin("df.records[i]."~member.stringof~" = group.index."~member.stringof~";");
+    //         }
+    //         static foreach (j,member; memberNames[idxMemberNames.length..$])
+    //         {
+    //             static if(isNumeric!(memberTypes[idxMemberNames.length+j]))
+    //                 mixin("df.records[i]."~member.stringof~" = group.items."~member.stringof~".mean;");
+    //         }
+    //     }
+    //     return df;
+    // }
 
-    alias max = numericApply!"maxElement";
+    // alias max = numericApply!"maxElement";
 
-    alias min = numericApply!"minElement";
+    // alias min = numericApply!"minElement";
 
     
     
