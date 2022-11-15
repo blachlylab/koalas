@@ -6,111 +6,79 @@ import koalas.dataframe;
 import std.meta: AliasSeq;
 import std.traits: isNumeric;
 import std.algorithm: sum, mean, maxElement, minElement;
+import mir.ndslice;
 
-struct GroupbyItem(IT,RT)
+/// Stores indexes to grouped items
+struct GroupbyItem(IT)
 {
-    IT index;
-    Dataframe!RT items;
+    IT * index;
+    size_t[] items;
 
 }
 
-struct Groupby(IT,RT)
+/// Represents grouped data in a dataframe
+struct Groupby(IT, Args...)
 {
-    GroupbyItem!(IT,RT)[] groups;
-
-    alias record_type = RT;
-    alias idx_type = IT;
-
-    alias memberTypes = AliasSeq!(typeof(RT.tupleof));
-    alias memberNames = AliasSeq!(RT.tupleof);
-
-    alias idxMemberTypes = AliasSeq!(typeof(IT.tupleof));
-    alias idxMemberNames = AliasSeq!(IT.tupleof);
+    Dataframe!(Args) * df;
+    IT[] indexes;
+    GroupbyItem!(IT)[] groups;
 
     auto count(){
-        alias indexNames = AliasSeq!(IT.tupleof);
-
-        enum new_type_name = RT.stringof~"_"~IT.stringof~"_"~"Agg";
-        mixin(GenAddStructString!(IT,new_type_name,"ulong count;"));
-        mixin("alias new_type = "~new_type_name~";");
-        Dataframe!new_type df;
+        alias CDF = Dataframe!(Zip!(IT.Types, IT.fieldNames), ulong, "count");
+        CDF newDf;
         foreach(group;groups){
-            new_type row;
-            static foreach (i,name; indexNames){
-                mixin("row."~name.stringof~"=group.index."~name.stringof~";");
+            
+            CDF.RT row;
+            static foreach (name; IT.fieldNames){
+                mixin("row."~name~"=group.index."~name~";");
             }
-            row.count = group.items.records.length;
-            df.records ~= row;
+            row.count = group.items.length;
+            newDf.records ~= row;
         }
-        return df;
+        return newDf;
     }
 
     auto first(){
-        Dataframe!RT new_df;
+        Dataframe!(Args) newDf;
         foreach(group;groups){
             if(group.items.length > 0)
-                new_df.records ~= group.items.records[0];
+                newDf.records ~= df.records.indexed(group.items[0..1]).front;
         }
-        return new_df;
+        return newDf;
     }
 
     auto numericApply(string fun)(){
-        mixin(GenerateSubsetNumericDataframe(Groupby!(IT,RT)()));
-        df.length = groups.length;
+        alias NDF = Dataframe!(Zip!(IT.Types, IT.fieldNames), SubsetByTemplate!(isNumeric, IT, Args));
+        NDF newDf; 
+        newDf.length = groups.length;
         foreach (i,group; groups)
         {
-            static foreach (j,member; idxMemberNames)
+            static foreach (member; IT.fieldNames)
             {
-                mixin("df.records[i]."~member.stringof~" = group.index."~member.stringof~";");
+                mixin("newDf.records[i]."~member~" = group.index."~member~";");
             }
-            static foreach (j,member; memberNames[idxMemberNames.length..$])
+            static foreach (j,member; NDF.memberNames[IT.fieldNames.length..$])
             {
-                static if(isNumeric!(memberTypes[idxMemberNames.length+j]))
-                    mixin("df.records[i]."~member.stringof~" = group.items."~member.stringof~"."~fun~";");
+                mixin("newDf.records[i]."~member~" = df.records.indexed(group.items).member!\""~member~"\"."~fun~";");
             }
         }
-        return df;
+        return newDf;
     }
 
-    // alias sum = numericApply!"sum";
-
-    // auto mean(){
-    //     mixin(GenerateSubsetDoubleDataframe(Groupby!(IT,RT)()));
-    //     df.length = groups.length;
-    //     foreach (i,group; groups)
-    //     {
-    //         static foreach (j,member; idxMemberNames)
-    //         {
-    //             mixin("df.records[i]."~member.stringof~" = group.index."~member.stringof~";");
-    //         }
-    //         static foreach (j,member; memberNames[idxMemberNames.length..$])
-    //         {
-    //             static if(isNumeric!(memberTypes[idxMemberNames.length+j]))
-    //                 mixin("df.records[i]."~member.stringof~" = group.items."~member.stringof~".mean;");
-    //         }
-    //     }
-    //     return df;
-    // }
-
-    // alias max = numericApply!"maxElement";
-
-    // alias min = numericApply!"minElement";
-
-    
+    alias sum = numericApply!"sum";    
     
     string toString(){
         import std.conv: to;
         string output;
-        alias memberNames = AliasSeq!(IT.tupleof);
-        foreach (GroupbyItem!(IT, RT) group; groups)
+        foreach (GroupbyItem!(IT) group; groups)
         {
-            static foreach (member; memberNames){
-                output~=member.stringof~": ";
-                mixin("output~=group.index."~member.stringof~".to!string;");
+            static foreach (member; IT.fieldNames){
+                output~=member~": ";
+                mixin("output~=group.index."~member~".to!string;");
                 output~="\t";
             }
             output = output[0..$-1] ~'\n';
-            output ~= group.items.toString;
+            output ~= Dataframe!(Args)(df.records.indexed(group.items).ndarray).toString;
         }
         return output;
     }
@@ -118,12 +86,13 @@ struct Groupby(IT,RT)
 
 unittest{
     import std.stdio;
-    auto df =  Dataframe().addNewCol!(string,"chrom").addNewCol!(int,"pos1").addNewCol!(double,"pos2");
-    df.records~= df.record_type("1",2,0.2);
-    df.records~= df.record_type("1",2,0.3);
-    df.records~= df.record_type("2",3,0.4);
-    df.records~= df.record_type("q",7,0.5);
-    df.records~= df.record_type("q",6,0.6);
-    df.groupby!(["chrom","pos1"]).sum.writeln;
-    df.groupby!(["chrom"]).sum.writeln;
+    auto df =  Dataframe!(string,"chrom",int,"pos1",double,"pos2")();
+    df.records~= df.recordType("1",2,0.2);
+    df.records~= df.recordType("1",2,0.3);
+    df.records~= df.recordType("2",3,0.4);
+    df.records~= df.recordType("q",7,0.5);
+    df.records~= df.recordType("q",6,0.6);
+    df.groupby!("chrom","pos1").writeln;
+    df.groupby!("chrom","pos1").sum.writeln;
+    df.groupby!("chrom").sum.writeln;
 }
