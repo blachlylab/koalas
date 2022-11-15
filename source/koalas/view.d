@@ -17,7 +17,7 @@ struct ApplyView(alias fun, Args...) {
 
     auto fuse() {
         alias RT = ReturnType!fun;
-        return Dataframe!(Zip!(RT.Types,RT.fieldNames))(this.apply.fuse.ndarray);
+        return Dataframe!(Zip!(RT.Types,RT.fieldNames))(this.apply.ndarray);
     }
 }
 
@@ -75,6 +75,6 @@ struct View(Args...) {
     }
 
     auto fuse() {
-        return Dataframe!(Args)(this.view.fuse.ndarray);
+        return Dataframe!(Args)(this.view.ndarray);
     }
 }
