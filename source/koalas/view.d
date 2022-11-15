@@ -3,6 +3,8 @@ import koalas.dataframe;
 import koalas.util;
 import mir.ndslice;
 import std.traits : ReturnType;
+// import std.algorithm : 
+import std.array : array;
 
 struct ApplyView(alias fun, Args...) {
     Dataframe!(Args) * df;
@@ -22,6 +24,11 @@ struct ApplyView(alias fun, Args...) {
 struct View(Args...) {
     Dataframe!(Args) * df;
     size_t[] rowIdx;
+
+    this(Dataframe!(Args) * df, size_t[] rowIdx) {
+        this.df = df;
+        this.rowIdx = rowIdx;
+    }
 
     /// Allow getting column as a property
     /// TODO: fix issue when a column name overlaps existing df function
@@ -48,9 +55,17 @@ struct View(Args...) {
         return this.view.member!(col);
     }
 
-    this(Dataframe!(Args) * df, size_t[] rowIdx) {
-        this.df = df;
-        this.rowIdx = rowIdx;
+    /// returns a dataframe of filtered records
+    /// filters on col == value if provided cmpOp is ==
+    /// similar to df[df["col"] == value] in pandas
+    template select(string col, string cmpOp = "=="){
+        auto select(E)(E val) if(__traits(hasMember, Dataframe!(Args).recordType, col))
+        {
+            mixin("static assert(is(typeof(Dataframe!(Args).recordType." ~ col ~") == E));"); 
+            mixin("auto fun = (Dataframe!(Args).recordType x) => x." ~ col ~" "~ cmpOp ~" val;");
+            auto newIdx = this.rowIdx.filter!(x => fun(this.df.records[x])).array;
+            return View!(Args)(df, newIdx);
+        }
     }
 
     alias view this;

@@ -74,7 +74,8 @@ struct Dataframe(Args...){
         {
             mixin("static assert(is(typeof(RT." ~ col ~") == E));"); 
             mixin("auto fun = (RT x) => x." ~ col ~" "~ cmpOp ~" val;");
-            return Dataframe!T(records.filter!fun.array);
+            auto idx = iota!(size_t, 1)(this.length).filter!(x => fun(this.records[x])).array;
+            return View!(Args)(&this, idx);
         }
     }
 
@@ -306,8 +307,8 @@ struct Dataframe(Args...){
     }
 }
 
-auto unique(D)(D df){
-    return D(df.sort.records.uniq.array);
+auto unique(R)(R range){
+    return range.sort.uniq.array;
 }
 
 auto concat(DF)(DF[] dfs ...){
