@@ -2,6 +2,7 @@ module koalas.dataframe;
 import koalas.view;
 import koalas.groupby;
 import koalas.util;
+import koalas.index;
 
 import std.array: array;
 import std.array: split, join;
@@ -164,23 +165,12 @@ struct Dataframe(Args...){
         // generate index type
         alias Idx = Tuple!(Subset!([indices], Args));
 
-        auto idx = records.makeIndex!(size_t, mirMultiSort!(Idx, RT));
+        auto idx = Index!(Args)(&this);
+        idx.sort!(indices);
         
         // make groupby
-        Groupby!(Idx, Args) gby = Groupby!(Idx, Args)(&this, [], []);
-        if(records.length == 0) return gby;
-        gby.indexes ~= subsetTuple!(RT, [indices], Args)(records[idx[0]]);
-        gby.groups ~= GroupbyItem!Idx(&gby.indexes[$-1], []);
-        foreach (i; idx)
-        {
-            if(gby.indexes[$-1] == subsetTuple!(RT, [indices], Args)(records[idx[i]])) {
-                gby.groups[$-1].items ~= i;
-            } else {
-                gby.indexes ~= subsetTuple!(RT, [indices], Args)(records[idx[i]]);
-                gby.groups ~= GroupbyItem!Idx(&gby.indexes[$-1], [i]);
-            }    
-        }
-        return gby;
+        return Groupby!(Idx, [indices], Args)(&this, idx);
+        
     }
 
     /// sorts a dataframe based on a string[] of indices 
@@ -192,13 +182,15 @@ struct Dataframe(Args...){
             static assert(__traits(hasMember, RT, index));
         }
         alias OT = Tuple!(Subset!([indices], Args));
-        auto idx = records.makeIndex!(size_t, mirMultiSort!(OT, RT));
+        auto idx = Index!(Args)(&this);
+        idx.sort!(indices);
         return View!(Args)(&this, idx);
     }
 
     /// sorts a dataframe based on all columns 
     View!(Args) sort() {
-        auto idx = records.makeIndex!(size_t, mirMultiSort!(RT, RT));
+        auto idx = Index!(Args)(&this);
+        idx.sort!(this.memberNames);
         return View!(Args)(&this, idx);
     }
 
@@ -295,6 +287,11 @@ struct Dataframe(Args...){
         records ~= value;
     }
 
+    void opOpAssign(string op: "~")(Dataframe!(Args) df)
+    {
+        records ~= df.records;
+    }
+
     auto opAssign(Dataframe!(Args) rhs)
     {
         this.records = rhs.records;
@@ -350,6 +347,7 @@ unittest{
     df.pos[] = [2, 2, 3, 7, 6];
     assert(df.pos == [2, 2, 3, 7, 6]);
     auto gby = df.groupby!("chrom", "pos");
+    writeln(gby.count);
     assert(gby.count.count == [2, 1, 1, 1]);
     writeln(gby.first.other);
     assert(gby.first.other == ["hi", "high", "no", "no"]);
@@ -376,4 +374,9 @@ unittest{
 
     auto df2 = df.addNewCol!(int, "test");
     assert(df2.columns == ["chrom", "pos", "other", "test"]);
+    auto df3 = df2.subset!(["chrom", "pos", "test", "other"]).fuse();
+    assert(df3.columns == ["chrom", "pos", "test", "other"]);
+    assert(df3.length == 10);
+    df3 ~= df3.recordType("1", 8, 0, "k");
+    assert(df3.length == 11);
 }
