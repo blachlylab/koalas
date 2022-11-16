@@ -19,6 +19,10 @@ struct ApplyView(alias fun, Args...) {
         alias RT = ReturnType!fun;
         return Dataframe!(Zip!(RT.Types,RT.fieldNames))(this.apply.ndarray);
     }
+
+    string toString() {
+        return this.fuse.toString();
+    }
 }
 
 struct View(Args...) {
@@ -76,5 +80,9 @@ struct View(Args...) {
 
     auto fuse() {
         return Dataframe!(Args)(this.view.ndarray);
+    }
+
+    string toString() {
+        return this.fuse.toString();
     }
 }
